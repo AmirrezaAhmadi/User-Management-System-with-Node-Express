@@ -18,6 +18,16 @@ const auth = {
       .trim()
       .isLength({ min: 5 })
       .withMessage('Password must be at least 5 characters long.')
+  ],
+  login: [
+    body('email')
+      .isEmail()
+      .withMessage('Please enter a valid email.')
+      .normalizeEmail(),
+    body('password')
+      .trim()
+      .notEmpty()
+      .withMessage('Password cannot be empty.')
   ]
 };
 
