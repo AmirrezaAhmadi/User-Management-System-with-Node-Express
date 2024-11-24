@@ -10,4 +10,6 @@ router.post("/login", auth.login, authControllers.login);
 
 router.post('/logout', isAuth, authControllers.logout);
 
+router.post('/me' ,  isAuth ,authControllers.me);
+
 module.exports = router;

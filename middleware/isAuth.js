@@ -1,37 +1,61 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/user');
+const jwt = require("jsonwebtoken");
+const User = require("../models/user");
 
 module.exports = async (req, res, next) => {
-  const authHeader = req.get('Authorization');
-  if (!authHeader) {
-    const error = new Error('Not authenticated.');
-    error.statusCode = 401;
-    return next(error);
+  const authHeader = req.get("Authorization");
+  let accessToken;
+  let refreshToken;
+
+  if (authHeader) {
+    accessToken = authHeader.split(" ")[1];
+  } else if (req.cookies && req.cookies.accessToken) {
+    accessToken = req.cookies.accessToken;
   }
 
-  const token = authHeader.split(' ')[1];
-  let decodedToken;
-  
+  refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
+  if (!accessToken && !refreshToken) {
+    return res.status(401).json({ message: "No tokens provided. Unauthorized." });
+  }
+
   try {
-    decodedToken = jwt.verify(token, 'somesupersecretsecret');
+    if (accessToken) {
+      const decodedToken = jwt.verify(accessToken, process.env.ACCESSTOKEN_KEY);
+      req.userId = decodedToken.userId;
+      return next();
+    }
   } catch (err) {
-    err.statusCode = 500;
-    return next(err);
+    if (err.name !== "TokenExpiredError") {
+      return res.status(401).json({ message: "Invalid Access Token." });
+    }
   }
 
-  if (!decodedToken) {
-    const error = new Error('Not authenticated.');
-    error.statusCode = 401;
-    return next(error);
-  }
+  try {
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh Token is missing." });
+    }
 
-  const user = await User.findById(decodedToken.userId);
-  if (!user || !user.refreshToken) {
-    const error = new Error('Not authenticated.');
-    error.statusCode = 401;
-    return next(error);
-  }
+    const decodedRefreshToken = jwt.verify(refreshToken, process.env.REFRESHTOKEN_KEY);
 
-  req.userId = decodedToken.userId;
-  next();
+    const user = await User.findById(decodedRefreshToken.userId);
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(403).json({ message: "Invalid or mismatched Refresh Token." });
+    }
+
+    const newAccessToken = jwt.sign(
+      { userId: user._id.toString(), email: user.email },
+      "access-super-secret-key",
+      { expiresIn: "15m" }
+    );
+
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    req.userId = user._id.toString();
+    return next();
+  } catch (err) {
+    return res.status(403).json({ message: "Invalid or expired Refresh Token." });
+  }
 };
