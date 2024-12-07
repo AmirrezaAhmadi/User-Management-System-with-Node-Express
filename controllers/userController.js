@@ -59,6 +59,15 @@ exports.login = async (req, res, next) => {
       return next(error);
     }
 
+    user.refreshTokens = user.refreshTokens.filter((token) => {
+      try {
+        jwt.verify(token, process.env.REFRESHTOKEN_KEY);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    });
+
     const accessToken = jwt.sign(
       {
         email: user.email,
@@ -76,10 +85,9 @@ exports.login = async (req, res, next) => {
       process.env.REFRESHTOKEN_KEY,
       { expiresIn: "7d" }
     );
-    await User.updateOne(
-      { _id: user._id },
-      { refreshToken: refreshToken }
-    );
+
+    user.refreshTokens.push(refreshToken);
+    await user.save();
 
     res.status(200).json({
       accessToken: accessToken,
@@ -95,10 +103,20 @@ exports.login = async (req, res, next) => {
 
 
 exports.logout = async (req, res, next) => {
-  try {
-    const userId = req.userId;
+  const refreshToken = req.body.refreshToken;
 
-    await User.updateOne({ _id: userId }, { refreshToken: "" });
+  try {
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh Token is required." });
+    }
+
+    const user = await User.findOne({ refreshTokens: refreshToken });
+    if (!user) {
+      return res.status(403).json({ message: "Invalid Refresh Token." });
+    }
+
+    user.refreshTokens = user.refreshTokens.filter((token) => token !== refreshToken);
+    await user.save();
 
     res.status(200).json({ message: "Logged out successfully!" });
   } catch (err) {
@@ -109,11 +127,11 @@ exports.logout = async (req, res, next) => {
   }
 };
 
+
 exports.me = async (req, res) => {
   try {
     const name = req.body.name;
     const user = await User.findOne({ name });
-    console.log(name)
     if (!user) return res.status(404).json({ message: "User not found" });
 
     res.json({

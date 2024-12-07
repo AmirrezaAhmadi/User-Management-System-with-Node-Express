@@ -37,20 +37,35 @@ module.exports = async (req, res, next) => {
     const decodedRefreshToken = jwt.verify(refreshToken, process.env.REFRESHTOKEN_KEY);
 
     const user = await User.findById(decodedRefreshToken.userId);
-    if (!user || user.refreshToken !== refreshToken) {
+    if (!user || !user.refreshTokens.includes(refreshToken)) {
       return res.status(403).json({ message: "Invalid or mismatched Refresh Token." });
     }
 
     const newAccessToken = jwt.sign(
       { userId: user._id.toString(), email: user.email },
-      "access-super-secret-key",
+      process.env.ACCESSTOKEN_KEY,
       { expiresIn: "15m" }
     );
 
+    const newRefreshToken = jwt.sign(
+      { userId: user._id.toString(), email: user.email },
+      process.env.REFRESHTOKEN_KEY,
+      { expiresIn: "7d" }
+    );
+
+    user.refreshTokens = user.refreshTokens.filter(token => token !== refreshToken);
+    user.refreshTokens.push(newRefreshToken);
+    await user.save();
+
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       maxAge: 15 * 60 * 1000,
+    });
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     req.userId = user._id.toString();
