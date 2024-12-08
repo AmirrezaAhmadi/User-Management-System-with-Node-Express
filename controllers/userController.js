@@ -18,7 +18,7 @@ exports.signup = async (req, res, next) => {
   try {
     const hashedPw = await bcrypt.hash(password, 12);
     const user = new User({
-      name : name,
+      name: name,
       email: email,
       password: hashedPw,
     });
@@ -87,6 +87,11 @@ exports.login = async (req, res, next) => {
     );
 
     user.refreshTokens.push(refreshToken);
+
+    if (user.refreshTokens.length > 3) {
+      user.refreshTokens = user.refreshTokens.slice(-3);
+    }
+
     await user.save();
 
     res.status(200).json({
@@ -101,22 +106,37 @@ exports.login = async (req, res, next) => {
   }
 };
 
-
 exports.logout = async (req, res, next) => {
-  const refreshToken = req.body.refreshToken;
+  const refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
 
   try {
     if (!refreshToken) {
       return res.status(400).json({ message: "Refresh Token is required." });
     }
 
-    const user = await User.findOne({ refreshTokens: refreshToken });
-    if (!user) {
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(refreshToken, process.env.REFRESHTOKEN_KEY);
+    } catch (err) {
       return res.status(403).json({ message: "Invalid Refresh Token." });
     }
 
-    user.refreshTokens = user.refreshTokens.filter((token) => token !== refreshToken);
+    const user = await User.findById(decodedToken.userId);
+    if (!user) {
+      return res.status(403).json({ message: "User not found." });
+    }
+
+    user.refreshTokens = user.refreshTokens.filter(
+      (token) => token !== refreshToken
+    );
+
     await user.save();
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
 
     res.status(200).json({ message: "Logged out successfully!" });
   } catch (err) {
@@ -127,11 +147,11 @@ exports.logout = async (req, res, next) => {
   }
 };
 
-
 exports.me = async (req, res) => {
   try {
-    const name = req.body.name;
-    const user = await User.findOne({ name });
+    const userId = req.userId;
+    const user = await User.findById(userId);
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
     res.json({
