@@ -14,4 +14,8 @@ router.post('/me' ,  isAuth ,authControllers.me);
 
 router.post("/change-password", isAuth, authControllers.changePassword);
 
+router.post("/password-reset/request", authControllers.requestPasswordReset);
+
+router.post("/password-reset", authControllers.resetPassword);
+
 module.exports = router;

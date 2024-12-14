@@ -9,12 +9,24 @@ const userSchema = new Schema({
   email: {
     type: String,
     required: true,
+    unique: true,
   },
   password: {
     type: String,
     required: true,
   },
-  refreshTokens: { type: [String], default: [] }
+  refreshTokens: { 
+    type: [String], 
+    default: [] 
+  },
+  resetPasswordToken: {
+    type: String,
+    default: null,
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null,
+  }
 });
 
 module.exports = mongoose.model("User", userSchema);
