@@ -170,6 +170,11 @@ exports.me = async (req, res) => {
 };
 
 exports.changePassword = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ errors: errors.array() });
+  }
+
   const userId = req.userId;
   const { currentPassword, newPassword } = req.body;
 
@@ -205,6 +210,10 @@ exports.changePassword = async (req, res, next) => {
 };
 
 exports.requestPasswordReset = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ errors: errors.array() });
+  }
   const { email } = req.body;
   try {
     const user = await User.findOne({ email });
@@ -241,6 +250,11 @@ exports.requestPasswordReset = async (req, res) => {
 };
 
 exports.resetPassword = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ errors: errors.array() });
+  }
+
   const { token, newPassword } = req.body;
 
   try {
@@ -248,11 +262,13 @@ exports.resetPassword = async (req, res) => {
 
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() }, 
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid or expired reset token." });
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired reset token." });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
