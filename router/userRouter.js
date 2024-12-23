@@ -2,7 +2,7 @@ const express = require("express");
 const authControllers = require("../controllers/userController");
 const router = express.Router();
 const { auth } = require("../validations/authValidations");
-const isAuth = require("../middleware/isAuth");
+const isAuth = require("../middlewares/isAuth");
 
 router.post("/register", auth.register, authControllers.signup);
 
@@ -21,14 +21,14 @@ router.post(
 
 router.post(
   "/password-reset/request",
-  authControllers,
-  auth.resetPasswordRequest.requestPasswordReset
+  auth.resetPasswordRequest,
+  authControllers.requestPasswordReset
 );
 
 router.post(
   "/password-reset",
-  authControllers,
-  auth.resetPassword.resetPassword
+  auth.resetPassword,
+  authControllers.resetPassword
 );
 
 module.exports = router;

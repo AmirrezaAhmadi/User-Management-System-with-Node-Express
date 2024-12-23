@@ -14,7 +14,9 @@ module.exports = async (req, res, next) => {
 
   refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
   if (!accessToken && !refreshToken) {
-    return res.status(401).json({ message: "No tokens provided. Unauthorized." });
+    return res
+      .status(401)
+      .json({ message: "No tokens provided. Unauthorized." });
   }
 
   try {
@@ -34,11 +36,16 @@ module.exports = async (req, res, next) => {
       return res.status(401).json({ message: "Refresh Token is missing." });
     }
 
-    const decodedRefreshToken = jwt.verify(refreshToken, process.env.REFRESHTOKEN_KEY);
+    const decodedRefreshToken = jwt.verify(
+      refreshToken,
+      process.env.REFRESHTOKEN_KEY
+    );
 
     const user = await User.findById(decodedRefreshToken.userId);
     if (!user || !user.refreshTokens.includes(refreshToken)) {
-      return res.status(403).json({ message: "Invalid or mismatched Refresh Token." });
+      return res
+        .status(403)
+        .json({ message: "Invalid or mismatched Refresh Token." });
     }
 
     const newAccessToken = jwt.sign(
@@ -53,7 +60,9 @@ module.exports = async (req, res, next) => {
       { expiresIn: "7d" }
     );
 
-    user.refreshTokens = user.refreshTokens.filter(token => token !== refreshToken);
+    user.refreshTokens = user.refreshTokens.filter(
+      (token) => token !== refreshToken
+    );
     user.refreshTokens.push(newRefreshToken);
     await user.save();
 
@@ -71,6 +80,8 @@ module.exports = async (req, res, next) => {
     req.userId = user._id.toString();
     return next();
   } catch (err) {
-    return res.status(403).json({ message: "Invalid or expired Refresh Token." });
+    return res
+      .status(403)
+      .json({ message: "Invalid or expired Refresh Token." });
   }
 };
