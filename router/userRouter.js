@@ -10,23 +10,23 @@ router.post("/login", auth.login, authControllers.login);
 
 router.post("/logout", authControllers.logout);
 
-router.post("/me", isAuth, authControllers.me);
+router.post("/profile", isAuth, authControllers.me);
 
 router.post(
-  "/change-password",
+  "/update-password",
   isAuth,
   auth.changePassword,
   authControllers.changePassword
 );
 
 router.post(
-  "/password-reset/request",
+  "/request-password-change",
   auth.resetPasswordRequest,
   authControllers.requestPasswordReset
 );
 
 router.post(
-  "/password-reset",
+  "/reset-password",
   auth.resetPassword,
   authControllers.resetPassword
 );
